@@ -1,5 +1,4 @@
 gestflow-env/
-mediapipe/
 node_modules/
 __pycache__/
 *.pyc
