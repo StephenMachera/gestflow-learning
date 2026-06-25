@@ -1,0 +1,8 @@
+gestflow-env/
+mediapipe/
+node_modules/
+__pycache__/
+*.pyc
+*.so
+.DS_Store
+Thumbs.db
