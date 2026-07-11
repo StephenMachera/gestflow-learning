@@ -8,19 +8,26 @@ import sys
 # Add parent folder to path for adapter imports
 sys.path.append(os.path.dirname(os.path.abspath(__file__)))
 
-from adapters.vlc_adapter import get_vlc_state
+from adapters.vlc_adapter     import get_vlc_state
+from adapters.browser_adapter import get_browser_state
+from adapters.vscode_adapter import get_vscode_state
 
 # ── Adapter registry ──
-
+# Every adapter signature must be: fn(window_title, app_name=None)
+# Adding a new app = one line here + one entry in app_mapping.json
 ADAPTER_REGISTRY = {
-    'vlc': get_vlc_state,
-    # 'chrome'  : get_chrome_state, 
-    # 'vscode'  : get_vscode_state, 
-    # 'spotify' : get_spotify_state,
+    'vlc'            : get_vlc_state,
+    'chrome'         : get_browser_state,
+    'google-chrome'  : get_browser_state,
+    'chromium'       : get_browser_state,
+    'brave-browser'  : get_browser_state,
+    'brave'          : get_browser_state,
+    'microsoft-edge' : get_browser_state,
+    'code'    : get_vscode_state,
+    # 'spotify' : get_spotify_state,   ← uncomment when built
 }
 
 # ── Load app mappings once at startup ──
-# Never read from disk inside classify_content()
 MAPPING_FILE = os.path.join(os.path.dirname(__file__), 'app_mapping.json')
 
 def load_app_mappings():
@@ -49,26 +56,25 @@ def classify_content(window_data):
     if not window_data:
         return None
 
-    app_name = window_data.get('app')
+    app_name     = window_data.get('app')
     window_title = window_data.get('windowTitle', '')
-    pid = window_data.get('pid')
+    pid          = window_data.get('pid')
 
     # ── Known app ──
     if app_name in APP_MAPPINGS:
-        mapping = APP_MAPPINGS[app_name]
+        mapping      = APP_MAPPINGS[app_name]
         content_type = mapping['contentType']
         adapter_name = mapping['adapter']
         adapter_state = {}
 
-        # Call the correct adapter dynamically
-        # Pass window_title — adapter never calls OS APIs directly
+        # Call correct adapter
+        # Pass BOTH window_title AND app_name
+        # Every adapter: fn(window_title, app_name=None)
         adapter_fn = ADAPTER_REGISTRY.get(app_name)
         if adapter_fn:
-            payload = adapter_fn(window_title)
+            payload = adapter_fn(window_title, app_name)  # ← fixed
             if payload:
-                # Let adapter override content type
-                # e.g. VLC playing .mp3 → audio not video
-                content_type = payload.get('dynamicType', content_type)
+                content_type  = payload.get('dynamicType', content_type)
                 adapter_state = payload.get('state', {})
 
         return {
@@ -95,7 +101,6 @@ def classify_content(window_data):
 # ── Test block ──
 if __name__ == "__main__":
     import json as json_lib
-    import sys
     sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
     from screen_reader import get_active_content
 
@@ -109,8 +114,8 @@ if __name__ == "__main__":
         print("❌ Could not detect active window")
         exit()
 
-    print(f"Active app    : {window_data['app']}")
-    print(f"Window title  : {window_data['windowTitle']}")
+    print(f"Active app   : {window_data['app']}")
+    print(f"Window title : {window_data['windowTitle']}")
 
     result = classify_content(window_data)
 

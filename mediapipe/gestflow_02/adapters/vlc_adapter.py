@@ -58,7 +58,7 @@ def detect_content_type(filename):
     return 'video'
 
 
-def get_vlc_state(window_title):
+def get_vlc_state(window_title,app_name):
     """
     Builds GestFlow state from VLC window title.
 

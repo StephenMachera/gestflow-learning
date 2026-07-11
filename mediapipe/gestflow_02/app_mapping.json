@@ -5,27 +5,31 @@
     },
     "chrome": {
         "contentType": "browser",
-        "adapter": "chrome_adapter"
+        "adapter": "browser_adapter"
     },
     "google-chrome": {
         "contentType": "browser",
-        "adapter": "chrome_adapter"
+        "adapter": "browser_adapter"
     },
      "chromium": {
     "contentType": "browser",
-    "adapter": "chrome_adapter"
+    "adapter": "browser_adapter"
     },
     "nautilus": {
     "contentType": "file",
     "adapter": null
     },
     "brave-browser": {
-        "contentType": "browser",
-        "adapter": "chrome_adapter"
-    },
+    "contentType": "browser",
+    "adapter": "browser_adapter"
+  },
+  "brave": {
+    "contentType": "browser",
+    "adapter": "browser_adapter"
+  },
     "firefox": {
         "contentType": "browser",
-        "adapter": "firefox_adapter"
+        "adapter": "browser_adapter"
     },
     "code": {
         "contentType": "code",
