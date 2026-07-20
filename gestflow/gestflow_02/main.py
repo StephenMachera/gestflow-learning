@@ -1,5 +1,6 @@
 # ==========================================
 # GESTFLOW — MAIN ENTRY POINT
+# Full pipeline: Phase 1 → 2 → 3 → 4
 # ==========================================
 import time
 import json
@@ -7,6 +8,7 @@ import sys
 import os
 import threading
 
+# ── Path setup ──
 # ── Path setup ──
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 PARENT_DIR = os.path.dirname(BASE_DIR)
@@ -42,35 +44,116 @@ from content_classifier import classify_content
 from screen_reader import get_active_content
 
 # ── Phase 3 imports ──
-from gestflow_state_capture.packet_builder import (
+from gestflow_03_state_capture.packet_builder import (
     build_transfer_packet,
     serialize_packet
 )
-from gestflow_state_capture.packet_validator import validate_packet
-from gestflow_state_capture.device_info import get_device_info
+from gestflow_03_state_capture.packet_validator import validate_packet
+from gestflow_03_state_capture.device_info import get_device_info
+
+# ── Phase 4 imports ──
+from gestflow_04_transfer_protocal.peer_manager import (
+    start_peer_cleanup,
+    get_target_peer,
+    get_online_peer_count,
+    print_peer_list
+)
+from gestflow_04_transfer_protocal.discovery import (
+    start_discovery,
+    stop_discovery,
+    is_discovery_active
+)
+from gestflow_04_transfer_protocal.transfer_server import (
+    start_transfer_server,
+    register_packet_handler
+)
+from gestflow_04_transfer_protocal.transfer_client import (
+    send_packet,
+    ping_peer
+)
 
 
 # ══════════════════════════════════════════
-# SERVICES
+# PHASE 5 HANDLER (placeholder)
+# Phase 5 will replace this with real
+# content resumption logic
+# ══════════════════════════════════════════
+
+def on_packet_received(packet):
+    """
+    Called when this device receives a content transfer.
+    Phase 5 will open the correct app and resume content.
+    For now — just print what was received.
+    """
+    content      = packet.get('content', {})
+    content_type = content.get('contentType')
+    state        = content.get('state', {})
+    source       = packet.get('sourcePeer', {}).get('name', 'Unknown')
+
+    print(f"\n🎉 CONTENT RECEIVED FROM {source}!")
+    print(f"=" * 40)
+    print(f"   Type    : {content_type}")
+
+    if content_type == 'code':
+        print(f"   File    : {state.get('filePath')}")
+        print(f"   Line    : {state.get('cursorLine')}")
+        print(f"   Branch  : {state.get('gitBranch')}")
+        print(f"\n   Phase 5 would open VSCode at this file and line")
+
+    elif content_type == 'video':
+        print(f"   File    : {state.get('filePath')}")
+        print(f"   At      : {state.get('timestamp')}s")
+        print(f"\n   Phase 5 would open VLC and seek to timestamp")
+
+    elif content_type == 'browser':
+        print(f"   URL     : {state.get('url')}")
+        print(f"   Title   : {state.get('pageTitle')}")
+        print(f"\n   Phase 5 would open this URL in the browser")
+
+    print(f"=" * 40)
+
+
+# ══════════════════════════════════════════
+# SERVICE STARTUP
 # ══════════════════════════════════════════
 
 def start_services():
-    """Starts all GestFlow background services."""
+    """Starts ALL GestFlow background services."""
     print("🤚 GestFlow Starting...")
     print("=" * 40)
 
-    # Start browser bridge
-    print("Starting browser bridge server...")
-    start_bridge_server()
-
-    # Show this device's identity
+    # ── Device identity ──
     device = get_device_info()
     print(f"\n🖥️  This device  : {device['name']}")
     print(f"   IP address  : {device['ip']}")
     print(f"   OS          : {device['os']}")
     print(f"   Device ID   : {device['id'][:8]}...")
     print(f"   P2P port    : {device['port']}")
-    print(f"\n✅ Services ready\n")
+
+    # ── Phase 2 — browser bridge ──
+    print(f"\n📡 Starting browser bridge...")
+    start_bridge_server()
+    print(f"✅ Browser bridge ready (port 8765)")
+
+    # ── Phase 4 — peer cleanup ──
+    print(f"\n🧹 Starting peer cleanup...")
+    start_peer_cleanup()
+    print(f"✅ Peer cleanup ready")
+
+    # ── Phase 4 — transfer server ──
+    print(f"\n🖧  Starting transfer server...")
+    register_packet_handler(on_packet_received)
+    start_transfer_server()
+    print(f"✅ Transfer server ready (port {device['port']})")
+
+    # ── Phase 4 — discovery ──
+    print(f"\n📡 Starting discovery service...")
+    start_discovery()
+    print(f"✅ Discovery ready")
+
+    print(f"\n{'=' * 40}")
+    print(f"✅ All services running")
+    print(f"{'=' * 40}\n")
 
 
 def wait_for_extension(timeout=10):
@@ -87,10 +170,7 @@ def wait_for_extension(timeout=10):
 
 
 def keep_extension_alive():
-    """
-    Pings all connected browser extensions every 20 seconds.
-    Prevents Chrome service worker from sleeping.
-    """
+    """Keeps browser extension service worker alive."""
     from browser_bridge_server import _loop
     import asyncio
 
@@ -113,20 +193,28 @@ def keep_extension_alive():
 
 
 # ══════════════════════════════════════════
-# DETECTION + PACKET BUILDING
-# Combines Phase 2 + Phase 3
+# MAIN DETECTION + TRANSFER LOOP
+# Combines Phase 2 + Phase 3 + Phase 4
 # ══════════════════════════════════════════
 
-def run_detection():
+def run_detection_and_transfer():
     """
     One full GestFlow cycle:
       Phase 2 → detect what is on screen
-      Phase 3 → build transfer packet
-      Phase 3 → validate packet
-      Phase 4 → (coming next) send to target device
+      Phase 3 → build and validate packet
+      Phase 4 → discover target + send packet
     """
-    browsers = get_connected_browsers()
-    print(f"🔌 Connected browsers : {browsers if browsers else 'none'}")
+
+    # Show peer status
+    peer_count = get_online_peer_count()
+    browsers   = get_connected_browsers()
+
+    print(f"🔌 Browser extensions : {browsers if browsers else 'none'}")
+    print(f"👥 Online peers       : {peer_count}")
+
+    if peer_count > 0:
+        print_peer_list()
+
     print("You have 7 seconds to switch to VLC, Chrome, VSCode, or Brave...")
     print()
     time.sleep(7)
@@ -148,32 +236,47 @@ def run_detection():
     # ── Phase 3 — build transfer packet ──
     packet = build_transfer_packet(
         classified_content = classified,
-        gesture            = "FIST_THROW_RIGHT",  # Phase 1 will set this
-        target_peer        = None                  # Phase 4 will set this
+        gesture            = "FIST_THROW_RIGHT",
+        target_peer        = None
     )
 
     if not packet:
         print("❌ Could not build packet")
         return
 
-    # ── Phase 3 — validate packet ──
+    # Validate
     validation = validate_packet(packet)
     if not validation['valid']:
         print(f"❌ Invalid packet: {validation['message']}")
-        for error in validation['errors']:
-            print(f"   → {error}")
         return
 
-    # ── Display results ──
-    print("📦 GestFlow Transfer Packet:")
-    print("=" * 40)
-    print(json.dumps(packet, indent=4))
+    print(f"✅ Packet built: {packet.get('packetId')}")
+    print(f"   Content type: {classified.get('contentType')}")
 
-    serialized = serialize_packet(packet)
-    print(f"\n📡 Packet size    : {len(serialized)} bytes")
-    print(f"✅ Packet status  : {validation['message']}")
-    print(f"⏳ Packet status  : {packet['status']}")
-    print(f"\n🚀 Ready for Phase 4 — transfer to target device\n")
+    # ── Phase 4 — find target and send ──
+    target = get_target_peer()
+
+    if not target:
+        print("\n⚠️  No peers online yet")
+        print("   Run GestFlow on another device on the same WiFi")
+        print("   Packet is ready — will send when a peer is found")
+        print(f"\n📦 Packet preview:")
+        print(json.dumps(packet, indent=4))
+        return
+
+    print(f"\n🎯 Target peer: {target['name']} ({target['ip']})")
+
+    # Send packet
+    result = send_packet(packet, target)
+
+    # Show final status
+    status = result.get('status')
+    if status == 'DELIVERED':
+        print(f"\n✅ Transfer complete!")
+        print(f"   {classified.get('contentType')} sent to {target['name']}")
+    else:
+        print(f"\n❌ Transfer failed")
+        print(f"   Status: {status}")
 
 
 # ══════════════════════════════════════════
@@ -188,17 +291,19 @@ if __name__ == "__main__":
     # 2 — Wait for browser extension
     wait_for_extension(timeout=10)
 
-    # 3 — Keep extension alive permanently
+    # 3 — Keep extension alive
     keep_extension_alive()
 
-    # 4 — Run detection loop
+    # 4 — Main loop
     try:
         while True:
-            run_detection()
-            print("-" * 40)
+            run_detection_and_transfer()
+            print("\n" + "-" * 40)
             print("Waiting for next detection...")
             print("-" * 40 + "\n")
             time.sleep(2)
 
     except KeyboardInterrupt:
-        print("\n\n👋 GestFlow stopped")
+        print("\n\nShutting down GestFlow...")
+        stop_discovery()
+        print("👋 GestFlow stopped")
