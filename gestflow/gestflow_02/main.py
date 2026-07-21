@@ -72,6 +72,8 @@ from gestflow_04_transfer_protocal.transfer_client import (
     ping_peer
 )
 
+from gestflow_05_receiver_engine.receiver import handle_received_packet
+
 
 # ══════════════════════════════════════════
 # PHASE 5 HANDLER (placeholder)
@@ -142,7 +144,7 @@ def start_services():
 
     # ── Phase 4 — transfer server ──
     print(f"\n🖧  Starting transfer server...")
-    register_packet_handler(on_packet_received)
+    register_packet_handler(handle_received_packet)
     start_transfer_server()
     print(f"✅ Transfer server ready (port {device['port']})")
 
@@ -255,6 +257,14 @@ def run_detection_and_transfer():
 
     # ── Phase 4 — find target and send ──
     target = get_target_peer()
+
+    # Test by itself as transfer server
+    # target = {
+    # 'id'  : 'self-test',
+    # 'name': 'localhost (self)',
+    # 'ip'  : '127.0.0.1',
+    # 'port': 9001
+    # }
 
     if not target:
         print("\n⚠️  No peers online yet")
