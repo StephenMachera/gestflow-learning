@@ -1,0 +1,30 @@
+{
+  "manifest_version": 3,
+  "name": "GestFlow Browser Bridge",
+  "version": "1.0.0",
+  "description": "Connects your browser to GestFlow for gesture-based tab transfer.",
+
+  "permissions": [
+    "tabs",
+    "activeTab",
+    "alarms",
+    "storage"
+  ],
+
+  "host_permissions": [
+    "<all_urls>"
+  ],
+
+  "background": {
+    "service_worker": "background.js",
+    "type": "module"
+  },
+
+  "icons": {
+    "48": "icons/icon48.jpeg"
+  },
+
+  "action": {
+    "default_title": "GestFlow Browser Bridge"
+  }
+}

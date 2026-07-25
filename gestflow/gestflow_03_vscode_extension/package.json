@@ -1,0 +1,22 @@
+{
+    "name": "gestflow-vscode-extension",
+    "displayName": "GestFlow VSCode Bridge",
+    "description": "Connects VSCcode to GestFlow for gesture-based code transfer between devices",
+    "version": "1.0.0",
+    "publisher": "stephen-nyansoho-machera",
+    "engines": {
+        "vscode": "^1.74.0"
+    },
+    "categories": [
+        "Other"
+    ],
+    "activationEvents": [
+        "onStartupFinished"
+    ],
+    "main":"./extension.js",
+    "contributes": {},
+    "dependencies": {
+        "ws":"^8.0.0"
+    }
+
+}

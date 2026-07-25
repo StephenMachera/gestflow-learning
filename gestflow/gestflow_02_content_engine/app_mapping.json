@@ -1,0 +1,54 @@
+{
+    "vlc": {
+        "contentType": "video",
+        "adapter": "vlc_adapter"
+    },
+    "chrome": {
+        "contentType": "browser",
+        "adapter": "browser_adapter"
+    },
+    "google-chrome": {
+        "contentType": "browser",
+        "adapter": "browser_adapter"
+    },
+     "chromium": {
+    "contentType": "browser",
+    "adapter": "browser_adapter"
+    },
+    "nautilus": {
+    "contentType": "file",
+    "adapter": null
+    },
+    "brave-browser": {
+    "contentType": "browser",
+    "adapter": "browser_adapter"
+  },
+  "brave": {
+    "contentType": "browser",
+    "adapter": "browser_adapter"
+  },
+    "firefox": {
+        "contentType": "browser",
+        "adapter": "browser_adapter"
+    },
+    "code": {
+        "contentType": "code",
+        "adapter": "vscode_adapter"
+    },
+    "spotify": {
+        "contentType": "audio",
+        "adapter": "spotify_adapter"
+    },
+    "rhythmbox": {
+        "contentType": "audio",
+        "adapter": "rhythmbox_adapter"
+    },
+    "whatsapp": {
+        "contentType": "chat",
+        "adapter": "whatsapp_adapter"
+    },
+    "tiktok": {
+        "contentType": "video",
+        "adapter": "tiktok_adapter"
+    }
+}

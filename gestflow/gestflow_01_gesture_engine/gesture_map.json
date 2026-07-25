@@ -1,0 +1,50 @@
+{
+  "0": {
+    "name"   : "GRAB",
+    "emoji"  : "✊",
+    "action" : "GRAB_CONTENT",
+    "description": "Select and grab content on screen"
+  },
+  "1": {
+    "name"   : "OPEN_PALM",
+    "emoji"  : "🖐️",
+    "action" : "RELEASE_CONTENT",
+    "description": "Paste or release content on this device"
+  },
+  "2": {
+    "name"   : "PINCH",
+    "emoji"  : "🤏",
+    "action" : "GRAB_SMALL",
+    "description": "Grab small item like text or link"
+  },
+  "3": {
+    "name"   : "THROW_RIGHT",
+    "emoji"  : "👉",
+    "action" : "THROW_RIGHT",
+    "description": "Throw content to device on the right"
+  },
+  "4": {
+    "name"   : "THROW_LEFT",
+    "emoji"  : "👈",
+    "action" : "THROW_LEFT",
+    "description": "Throw content to device on the left"
+  },
+  "5": {
+    "name"   : "EXPAND",
+    "emoji"  : "🖖",
+    "action" : "EXPAND_CONTENT",
+    "description": "Open or expand item on screen"
+  },
+  "6": {
+    "name"   : "SELECT_MULTIPLE",
+    "emoji"  : "✌️",
+    "action" : "SELECT_MULTIPLE",
+    "description": "Select multiple items"
+  },
+  "7": {
+    "name"   : "CANCEL",
+    "emoji"  : "🤙",
+    "action" : "CANCEL_TRANSFER",
+    "description": "Cancel current transfer"
+  }
+}
