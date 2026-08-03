@@ -13,6 +13,8 @@ import time
 import json
 import sys
 import os
+import asyncio
+import websockets
 
 from zeroconf import (
     Zeroconf,
@@ -24,6 +26,7 @@ from zeroconf import (
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from gestflow_03_state_capture.device_info import get_device_info, GESTFLOW_P2P_PORT
 from gestflow_04_transfer_protocal.peer_manager import add_peer, remove_peer
+from gestflow_02_content_engine.browser_bridge_server import _handle_connection, PORT
 
 # ── Service type ──
 # Only GestFlow devices respond to this
@@ -195,6 +198,14 @@ _service_info    = None
 _browser         = None
 _discovery_active = False
 
+async def _run_server():
+    """Runs discovery and re-announces every 20 seconds."""
+    global _loop, _server_running
+    _loop           = asyncio.get_running_loop()
+    _server_running = True
+
+    async with websockets.serve(_handle_connection, 'localhost', PORT):
+        await asyncio.Future()
 
 def start_discovery():
     """
@@ -210,7 +221,6 @@ def start_discovery():
     global _zeroconf, _service_info, _browser, _discovery_active
 
     if _discovery_active:
-        print("⚠️  Discovery already running")
         return
 
     def run():
@@ -221,28 +231,27 @@ def start_discovery():
             print(f"📡 Starting discovery service...")
             print(f"   Broadcasting: {device['name']} on {device['ip']}:{device['port']}")
 
-            # Create zeroconf instance
-            _zeroconf = Zeroconf()
-
-            # Register this device on the network
+            _zeroconf     = Zeroconf()
             _service_info = _build_service_info()
             _zeroconf.register_service(_service_info)
             print(f"✅ Device registered on network")
 
-            # Listen for other GestFlow devices
             listener = GestFlowListener()
-            _browser = ServiceBrowser(
-                _zeroconf,
-                SERVICE_TYPE,
-                listener
-            )
+            _browser  = ServiceBrowser(_zeroconf, SERVICE_TYPE, listener)
             print(f"👂 Listening for nearby GestFlow devices...")
 
             _discovery_active = True
 
-            # Keep running until stop_discovery() is called
+            # ── Re-announce every 20 seconds ──
+            # Keeps this device visible to peers
+            # Prevents peers from marking us as stale
             while _discovery_active:
-                time.sleep(1)
+                time.sleep(20)
+                if _discovery_active and _zeroconf and _service_info:
+                    try:
+                        _zeroconf.update_service(_service_info)
+                    except Exception:
+                        pass
 
         except Exception as e:
             print(f"❌ Discovery error: {e}")
@@ -250,8 +259,6 @@ def start_discovery():
 
     thread = threading.Thread(target=run, daemon=True)
     thread.start()
-
-    # Wait for discovery to start
     time.sleep(2)
 
 
