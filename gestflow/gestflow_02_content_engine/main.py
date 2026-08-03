@@ -144,6 +144,29 @@ def on_grab_gesture(gesture_info):
 def on_throw_right(gesture_info):
     """THROW RIGHT — send grabbed content to peer."""
     import gestflow_06_integration.gesture_engine as ge
+    from gestflow_04_transfer_protocal.peer_manager import get_all_peers, get_online_peers
+
+    # ── DEBUG ──
+    all_peers    = get_all_peers()
+    online_peers = get_online_peers()
+    print(f"\n🔍 DEBUG:")
+    print(f"   All peers    : {len(all_peers)}")
+    print(f"   Online peers : {len(online_peers)}")
+    for p in all_peers:
+        print(f"   → {p.get('name')} ({p.get('ip')}) online={p.get('online')}")
+
+    if not ge._grabbed_packet:
+        print("⚠️  Nothing grabbed — make FIST gesture first")
+        return
+
+    print("\n👉 THROW RIGHT — sending to target device...")
+    target = get_target_peer()
+
+    if not target:
+        print("⚠️  No peers online")
+        return
+
+    result = send_packet(ge._grabbed_packet, target)
 
     if not ge._grabbed_packet:
         print("⚠️  Nothing grabbed — make FIST gesture first")
@@ -220,6 +243,34 @@ def on_select_multiple(gesture_info):
 # ══════════════════════════════════════════
 # SERVICES STARTUP
 # ══════════════════════════════════════════
+def keep_peers_alive():
+    """
+    Pings all known peers every 15 seconds.
+    Prevents peers from being marked stale.
+    """
+    from gestflow_04_transfer_protocal.peer_manager import (
+        get_all_peers, update_peer_last_seen
+    )
+    from gestflow_04_transfer_protocal.transfer_client import ping_peer
+
+    def run():
+        while True:
+            time.sleep(15)
+            peers = get_all_peers()
+            for peer in peers:
+                try:
+                    alive = ping_peer(peer)
+                    if alive:
+                        update_peer_last_seen(peer['id'])
+                        print(f"🏓 Peer alive: {peer['name']}")
+                    else:
+                        print(f"⚠️  Peer not responding: {peer['name']}")
+                except Exception:
+                    pass
+
+    thread = threading.Thread(target=run, daemon=True)
+    thread.start()
+    print("🏓 Peer keep-alive started")
 
 def start_services():
     """Starts ALL GestFlow background services."""
@@ -253,6 +304,7 @@ def start_services():
     start_discovery()
     print(f"✅ Discovery ready")
 
+    keep_peers_alive()
     # Phase 6 — register gesture actions
     print(f"\n✋ Registering gesture actions...")
     register_action('GRAB_CONTENT'   , on_grab_gesture)
