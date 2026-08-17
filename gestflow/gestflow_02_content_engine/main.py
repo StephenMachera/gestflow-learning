@@ -246,31 +246,42 @@ def on_select_multiple(gesture_info):
 def keep_peers_alive():
     """
     Pings all known peers every 15 seconds.
-    Prevents peers from being marked stale.
+    Silent — does not flood terminal.
     """
     from gestflow_04_transfer_protocal.peer_manager import (
-        get_all_peers, update_peer_last_seen
+        get_all_peers, update_peer_last_seen, mark_peer_offline
     )
-    from gestflow_04_transfer_protocal.transfer_client import ping_peer
+
+    def ping_one(peer):
+        """Ping a single peer using simple socket check."""
+        import socket
+        try:
+            sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+            sock.settimeout(2)
+            result = sock.connect_ex((peer['ip'], peer['port']))
+            sock.close()
+            if result == 0:
+                update_peer_last_seen(peer['id'])
+                return True
+            else:
+                mark_peer_offline(peer['id'])
+                return False
+        except Exception:
+            mark_peer_offline(peer['id'])
+            return False
 
     def run():
         while True:
             time.sleep(15)
             peers = get_all_peers()
             for peer in peers:
-                try:
-                    alive = ping_peer(peer)
-                    if alive:
-                        update_peer_last_seen(peer['id'])
-                        print(f"🏓 Peer alive: {peer['name']}")
-                    else:
-                        print(f"⚠️  Peer not responding: {peer['name']}")
-                except Exception:
-                    pass
+                alive = ping_one(peer)
+                if alive:
+                    update_peer_last_seen(peer['id'])
+                # No print — silent operation
 
     thread = threading.Thread(target=run, daemon=True)
     thread.start()
-    print("🏓 Peer keep-alive started")
 
 def start_services():
     """Starts ALL GestFlow background services."""
