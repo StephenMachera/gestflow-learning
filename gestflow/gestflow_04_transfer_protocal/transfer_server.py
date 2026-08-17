@@ -214,7 +214,8 @@ async def _run_server():
     async with websockets.serve(
         _handle_incoming,
         '0.0.0.0',          # listen on ALL interfaces
-        device['port']      # port 9000
+        device['port'] ,     # port 9000
+        max_size = 500 * 1024 * 1024
     ):
         print(f"🖧  P2P server listening on port {device['port']}")
         print(f"   Any GestFlow device can now send to this machine")

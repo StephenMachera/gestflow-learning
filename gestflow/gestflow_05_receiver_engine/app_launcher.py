@@ -105,30 +105,24 @@ def open_browser(url):
         print(f"⚠️  Could not open browser: {e}")
         return False
     
-def open_vlc(file_path = None, timestamp = 0):
-    """
-    Opens VLC with a file at a specific timestamp.
-    """
-    if not file_path:
-        print("⚠️  No file path provided")
-        return False
-    try:
-        if OS == 'linux':
-            cmd = ['vlc', file_path]
-        elif OS == 'windows':
-            cmd = ['vlc', file_path]
-        elif OS == 'mac':
-            cmd = ['open', '-a', 'VLC', file_path]
-        else:
-            cmd = ['vlc', file_path]
-        
-        subprocess.Popen(cmd)
-        print(f"✅ VLC opened: {file_path}")
-        return True
+def open_vlc(file_path=None, timestamp=0):
+    """Opens VLC — cross platform."""
+    from gestflow_05_receiver_engine.injectors.vlc_injector import (
+        _find_vlc_executable,
+        _open_vlc
+    )
 
-    except FileNotFoundError:
-        print("⚠️  VLC not found — please install VLC")
+    vlc_exe = _find_vlc_executable()
+    if not vlc_exe:
+        print("❌ VLC not found")
         return False
+
+    if file_path:
+        return _open_vlc(vlc_exe, file_path, timestamp, 100)
+
+    try:
+        subprocess.Popen([vlc_exe])
+        return True
     except Exception as e:
         print(f"⚠️  Could not open VLC: {e}")
         return False

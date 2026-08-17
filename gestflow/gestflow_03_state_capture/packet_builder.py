@@ -3,6 +3,8 @@ import sys
 import json
 import time
 import uuid
+import base64
+
 
 # Add the parent directory to the sys.path
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
@@ -12,6 +14,10 @@ from gestflow_03_state_capture.device_info import get_device_info
 # Bump this when packet format changes
 # Receiving devices check this before processing
 GESTFLOW_VERSION = '1'
+
+# Maximum file size to embed directly in packet
+MAX_EMBED_SIZE_MB = 50
+MAX_EMBED_SIZE    = MAX_EMBED_SIZE_MB * 1024 * 1024  # bytes
 
 # ── Packet types ──
 PACKET_TYPES = {
@@ -53,34 +59,88 @@ def _get_timestamp():
 # ══════════════════════════════════════════
 # PACKET BUILDERS
 # ══════════════════════════════════════════
-def build_transfer_packet(classified_content, gesture,target_peer = None):
+def _embed_file(file_path):
     """
-    Builds a complete P2P transfer packet from Phase 2 output.
-
-    Arguments:
-      classified_content → output from content_classifier.classify_content()
-      gesture            → gesture that triggered the transfer
-                           e.g. "FIST_THROW_RIGHT", "PINCH_THROW_LEFT"
-      target_peer        → dict with ip, port, name of target device
-                           None if target not yet known (Phase 4 fills this in)
-
-    Returns complete transfer packet ready to send via Phase 4.
+    Reads file and returns base64 encoded content.
+    Returns None if file too large or unreadable.
     """
+    try:
+        file_size = os.path.getsize(file_path)
 
-    if not classified_content:
-        return None
-    
-    source_peer = get_device_info()
+        if file_size > MAX_EMBED_SIZE:
+            print(f"⚠️  File too large to embed: "
+                  f"{file_size / 1024 / 1024:.1f}MB "
+                  f"(max {MAX_EMBED_SIZE_MB}MB)")
+            print(f"   Streaming will be added in v2")
+            return None, file_size
+
+        print(f"📎 Embedding file: {file_size / 1024 / 1024:.1f}MB")
+
+        with open(file_path, 'rb') as f:
+            raw_bytes      = f.read()
+            encoded        = base64.b64encode(raw_bytes).decode('utf-8')
+            print(f"✅ File embedded successfully")
+            return encoded, file_size
+
+    except Exception as e:
+        print(f"⚠️  Could not read file: {e}")
+        return None, 0
+
+
+def build_transfer_packet(classified_content, gesture, target_peer=None):
+    """
+    Builds transfer packet.
+    For video/audio — embeds file if small enough.
+    For code — embeds file content as text.
+    """
+    source_peer  = get_device_info()
+    content      = dict(classified_content)
+    content_type = content.get('contentType')
+    state        = dict(content.get('state', {}))
+
+    # ── Embed file content based on type ──
+    if content_type in ('video', 'audio'):
+        file_path = state.get('filePath')
+
+        if file_path and os.path.exists(file_path):
+            encoded, file_size = _embed_file(file_path)
+
+            if encoded:
+                state['fileData']      = encoded           # base64 content
+                state['fileSize']      = file_size
+                state['fileName']      = os.path.basename(file_path)
+                state['fileExtension'] = os.path.splitext(file_path)[1]
+                state['embedded']      = True
+                print(f"📦 Video embedded in packet")
+            else:
+                state['embedded'] = False
+                state['fileName'] = os.path.basename(file_path)
+                print(f"⚠️  File not embedded — too large")
+        else:
+            state['embedded'] = False
+
+    elif content_type == 'code':
+        file_path = state.get('filePath')
+
+        if file_path and os.path.exists(file_path):
+            try:
+                with open(file_path, 'r', encoding='utf-8') as f:
+                    state['fileContent']   = f.read()
+                    state['fileExtension'] = os.path.splitext(file_path)[1]
+                    state['fileName']      = os.path.basename(file_path)
+                    state['embedded']      = True
+            except Exception as e:
+                print(f"⚠️  Could not read code file: {e}")
+                state['embedded'] = False
+
+    content['state'] = state
 
     packet = {
-        # ─ Packet metadata ─
-        'gestflow':GESTFLOW_VERSION,
-        'packetId':_generate_packet_id(),
-        'type':PACKET_TYPES['CONTENT_TRANSFER'],
-        'timestamp':_get_timestamp(),
-
-        # ─ Source peer info ─
-        'sourcePeer':{
+        'gestflow'  : GESTFLOW_VERSION,
+        'packetId'  : _generate_packet_id(),
+        'type'      : PACKET_TYPES['CONTENT_TRANSFER'],
+        'timestamp' : _get_timestamp(),
+        'sourcePeer': {
             'id'      : source_peer['id'],
             'name'    : source_peer['name'],
             'hostname': source_peer['hostname'],
@@ -88,31 +148,18 @@ def build_transfer_packet(classified_content, gesture,target_peer = None):
             'ip'      : source_peer['ip'],
             'port'    : source_peer['port'],
         },
-        'targetPeer': target_peer,  # None until phase 4 is implemented
-        # ── Gesture that triggered the transfer ──
-
-        'gesture': gesture,
-
-        # ── Content metadata ──
-        'content':{
-            'app'        : classified_content.get('app'),
-            'contentType': classified_content.get('contentType'),
-            'windowTitle': classified_content.get('windowTitle'),
-            'adapter'    : classified_content.get('adapter'),
-            'state'      : classified_content.get('state', {})
+        'targetPeer': target_peer,
+        'gesture'   : gesture,
+        'content'   : content,
+        'transfer'  : {
+            'requiresAck': True,
+            'expiresIn'  : 120,   # ← increased for large transfers
+            'retryCount' : 0,
+            'maxRetries' : 3,
         },
-
-        # ── Transfer metadata ──
-        'transfer': {
-            'requiresAck'  : True,      # target must confirm receipt
-            'expiresIn'    : 30,        # packet expires after 30 seconds
-            'retryCount'   : 0,         # how many times we retried sending
-            'maxRetries'   : 3,         # give up after 3 failed attempts
-        },
-
-        # ── Status ──
-        'status': 'PENDING'   # PENDING → SENT → DELIVERED → RESUMED
+        'status': 'PENDING'
     }
+
     return packet
 
 def build_ack_packet(original_packet, success = True, error = None):

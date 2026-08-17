@@ -95,50 +95,83 @@ def _find_file_locally(filename, project_name=None):
 
 def inject_vscode_state(state):
     """
-    Opens VSCode at exact position from transfer packet.
-    Handles cross-OS file path translation automatically.
+    Opens VSCode at exact position.
+    Handles three scenarios:
+      1. File exists locally at original path
+      2. File found locally by search
+      3. File not found — use embedded content from sender
     """
-    file_path    = state.get('filePath')
-    cursor_line  = state.get('cursorLine', 1)
-    git_branch   = state.get('gitBranch')
-    project_name = state.get('projectName')
-    filename     = os.path.basename(file_path) if file_path else None
+    file_path      = state.get('filePath')
+    cursor_line    = state.get('cursorLine', 1)
+    git_branch     = state.get('gitBranch')
+    project_name   = state.get('projectName')
+    file_content   = state.get('fileContent')      # ← embedded content
+    file_extension = state.get('fileExtension', '.py')
+    filename       = os.path.basename(file_path) if file_path else 'received_file.py'
 
     print(f"\n💻 VSCode State Injection:")
-    print(f"   Original path : {file_path}")
-    print(f"   Filename      : {filename}")
-    print(f"   Line          : {cursor_line}")
-    print(f"   Branch        : {git_branch}")
-    print(f"   Project       : {project_name}")
+    print(f"   File    : {filename}")
+    print(f"   Line    : {cursor_line}")
+    print(f"   Branch  : {git_branch}")
+    print(f"   Project : {project_name}")
+    print(f"   Has embedded content: {'Yes' if file_content else 'No'}")
 
-    if not file_path or not filename:
-        print("⚠️  No file path in state")
+    if not file_path and not file_content:
+        print("⚠️  No file path or content in state")
         return False
 
-    # ── Step 1: Try original path first ──
-    resolved = os.path.abspath(file_path)
-    if os.path.exists(resolved):
-        print(f"✅ File found at original path")
-        return open_vscode(resolved, cursor_line)
+    # ── Scenario 1: File exists at original path ──
+    if file_path:
+        resolved = os.path.abspath(file_path)
+        if os.path.exists(resolved):
+            print(f"✅ Scenario 1: File found at original path")
+            return open_vscode(resolved, cursor_line)
 
-    # ── Step 2: Cross-OS path — search locally ──
-    print(f"⚠️  File not at original path — searching locally...")
+    # ── Scenario 2: Search locally by filename ──
+    print(f"🔍 Scenario 2: Searching locally...")
     local_path = _find_file_locally(filename, project_name)
-
     if local_path:
-        print(f"\n✅ Opening local copy:")
-        print(f"   {local_path}:{cursor_line}")
-        if git_branch:
-            print(f"   Branch: {git_branch}")
+        print(f"✅ Scenario 2: Found locally at {local_path}")
         return open_vscode(local_path, cursor_line)
 
-    # ── Step 3: File not found anywhere — open VSCode with info ──
-    print(f"\n⚠️  File not found on this device")
-    print(f"   Filename : {filename}")
-    print(f"   Project  : {project_name}")
-    print(f"   Line     : {cursor_line}")
-    print(f"   Branch   : {git_branch}")
-    print(f"   Opening VSCode — navigate to file manually")
+    # ── Scenario 3: Use embedded file content ──
+    if file_content:
+        print(f"📥 Scenario 3: Using embedded file content from sender")
+
+        # Save to a GestFlow temp folder
+        temp_dir = os.path.join(
+            os.path.expanduser('~'),
+            '.gestflow',
+            'received_files'
+        )
+        os.makedirs(temp_dir, exist_ok=True)
+
+        # Save with original filename
+        temp_path = os.path.join(temp_dir, filename)
+
+        try:
+            with open(temp_path, 'w', encoding='utf-8') as f:
+                f.write(file_content)
+
+            print(f"✅ File saved to: {temp_path}")
+            print(f"   Opening VSCode at line {cursor_line}")
+
+            success = open_vscode(temp_path, cursor_line)
+
+            if success:
+                print(f"\n💡 Note: This is a copy of the file from the sender.")
+                print(f"   Original location: {file_path}")
+                if git_branch:
+                    print(f"   From branch: {git_branch}")
+
+            return success
+
+        except Exception as e:
+            print(f"⚠️  Could not save temp file: {e}")
+
+    # ── Scenario 4: Nothing worked — open VSCode empty ──
+    print(f"\n⚠️  Could not find or receive file")
+    print(f"   Opening VSCode without file")
     return open_vscode()
 
 

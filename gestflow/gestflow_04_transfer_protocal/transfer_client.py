@@ -52,7 +52,8 @@ async def _send_packet_async(target_ip, target_port, packet):
     try:
         async with websockets.connect(
             url,
-            open_timeout=CONNECT_TIMEOUT
+            open_timeout = CONNECT_TIMEOUT,
+            max_size     = 500 * 1024 * 1024
         ) as websocket:
 
             # Send packet
