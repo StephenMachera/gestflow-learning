@@ -19,7 +19,7 @@ sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from gestflow_03_state_capture.device_info import get_device_info
 
 # ── How long before a peer is considered offline ──
-PEER_TIMEOUT_SECONDS = 30
+PEER_TIMEOUT_SECONDS = 120
 
 
 # ══════════════════════════════════════════

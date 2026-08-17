@@ -179,8 +179,8 @@ async def _handle_ping(websocket, packet):
     """Responds to ping with pong."""
     pong = build_pong_packet(packet)
     await websocket.send(serialize_packet(pong))
-    source = packet.get('sourcePeer', {}).get('name', 'Unknown')
-    print(f"   🏓 Pong sent to {source}")
+    
+    
 
 
 async def _handle_peer_announce(websocket, packet):

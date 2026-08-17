@@ -29,23 +29,59 @@ OS = get_os()
 def open_vscode(file_path=None, line=None):
     """
     Opens VSCode at specific file and line.
-    Uses --reuse-window to open in existing VSCode instance.
+    Cross-platform — handles Windows PATH issues.
     """
+    import platform
+    os_name = platform.system()
+
+    # ── Find VSCode executable ──
+    vscode_commands = ['code']
+
+    if os_name == 'Windows':
+        # Common Windows VSCode locations
+        import os
+        possible_paths = [
+            os.path.join(os.environ.get('LOCALAPPDATA', ''),
+                        'Programs', 'Microsoft VS Code', 'bin', 'code.cmd'),
+            os.path.join(os.environ.get('PROGRAMFILES', ''),
+                        'Microsoft VS Code', 'bin', 'code.cmd'),
+            'code.cmd',
+            'code',
+        ]
+        vscode_commands = possible_paths
+
+    # Try each command until one works
+    for cmd in vscode_commands:
+        try:
+            args = [cmd, '--reuse-window']
+
+            if file_path and line:
+                args += ['--goto', f"{file_path}:{line}"]
+            elif file_path:
+                args += [file_path]
+
+            subprocess.Popen(args)
+            print(f"✅ VSCode opened via: {cmd}")
+            return True
+
+        except FileNotFoundError:
+            continue
+        except Exception as e:
+            print(f"⚠️  {cmd} failed: {e}")
+            continue
+
+    print("⚠️  VSCode not found — trying to open via system default...")
+
+    # Last resort — open with system default
     try:
-        cmd = ['code', '--reuse-window']  # ← add this flag
-
-        if file_path and line:
-            cmd += ['--goto', f"{file_path}:{line}"]
-        elif file_path:
-            cmd += [file_path]
-
-        subprocess.Popen(cmd)
-        print(f"✅ VSCode opened: {file_path}:{line}")
+        if os_name == 'Windows':
+            os.startfile(file_path or '.')
+        elif os_name == 'Darwin':
+            subprocess.Popen(['open', '-a', 'Visual Studio Code',
+                             file_path or '.'])
+        else:
+            subprocess.Popen(['xdg-open', file_path or '.'])
         return True
-
-    except FileNotFoundError:
-        print("⚠️  VSCode CLI not found")
-        return False
     except Exception as e:
         print(f"⚠️  Could not open VSCode: {e}")
         return False
