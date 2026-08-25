@@ -1,0 +1,19 @@
+gestflow-env/
+node_modules/
+__pycache__/
+*.pyc
+*.so
+.DS_Store
+Thumbs.db
+
+# Virtual Environments
+.venv/
+venv/
+env/
+opencv-env/
+*.venv
+
+# Python Cache
+__pycache__/
+*.pycgestflow_03_browser_extension.pem
+*.pem
