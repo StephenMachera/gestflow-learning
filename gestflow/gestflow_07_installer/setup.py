@@ -24,7 +24,7 @@ BASE_DIR     = os.path.dirname(os.path.abspath(__file__))
 REPO_DIR     = os.path.dirname(BASE_DIR)
 
 # ── GestFlow Chrome Extension ──
-EXTENSION_ID = 'oniiiabboammbabpoefbbhjanedagdlf'
+EXTENSION_ID = 'jhbbfpooppojigjokcbloggljambampo'
 UPDATE_URL   = 'https://StephenMachera.github.io/gestflow-learning/extension/update.xml'
 
 # ── Paths ──
