@@ -142,15 +142,11 @@ function handleMessage(message) {
 // ── Get current VSCode state ──
 function getCurrentState() {
     const editor = vscode.window.activeTextEditor
-    const filePath = document.uri.fsPath
-
-    // Ensure absolute path
-    const absolutePath = path.resolve(filePath)
 
     if (!editor) {
         return {
-            filePath    : absolutePath,
-            fileName    : path.basename(absolutePath),
+            filePath    : null,
+            fileName    : null,
             language    : null,
             cursorLine  : 0,
             cursorColumn: 0,
@@ -160,21 +156,22 @@ function getCurrentState() {
         }
     }
 
-    const document   = editor.document
-    const selection  = editor.selection
-    const filePath   = document.uri.fsPath
-    const fileName   = path.basename(filePath)
-    const cursorLine = selection.active.line + 1      // VSCode is 0-indexed
-    const cursorCol  = selection.active.character + 1
+    const document      = editor.document
+    const selection     = editor.selection
+    const filePath      = document.uri.fsPath
+    const absolutePath  = path.resolve(filePath)
+    const fileName      = path.basename(absolutePath)
+    const cursorLine    = selection.active.line + 1
+    const cursorCol     = selection.active.character + 1
 
     return {
-        filePath    : filePath,
+        filePath    : absolutePath,
         fileName    : fileName,
         language    : document.languageId,
         cursorLine  : cursorLine,
         cursorColumn: cursorCol,
         projectName : getProjectName(),
-        gitBranch   : getGitBranch(filePath),
+        gitBranch   : getGitBranch(absolutePath),
         isUnsaved   : document.isDirty
     }
 }

@@ -13,10 +13,12 @@
     "activationEvents": [
         "onStartupFinished"
     ],
-    "main":"./extension.js",
+    "main": "./dist/extension.js",
     "contributes": {},
     "dependencies": {
-        "ws":"^8.0.0"
+        "ws": "^8.0.0"
+    },
+    "devDependencies": {
+        "esbuild": "^0.28.2"
     }
-
 }

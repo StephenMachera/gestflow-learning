@@ -30,15 +30,17 @@ UPDATE_URL   = 'https://StephenMachera.github.io/gestflow-learning/extension/upd
 # ── Paths ──
 GESTFLOW_DIR    = os.path.join(HOME_DIR, '.gestflow')
 RECEIVED_DIR    = os.path.join(GESTFLOW_DIR, 'received_files')
+
+# Fixed — Chrome extension
 EXTENSION_SRC   = os.path.abspath(
-    os.path.join(REPO_DIR, 'gestflow',
-                 'gestflow_02_content_engine',
-                 'gestflow-extension')
+    os.path.join(REPO_DIR,
+                 'gestflow_03_browser_extension')
 )
+
+# Fixed — VSCode extension
 VSCODE_EXT_SRC  = os.path.abspath(
-    os.path.join(REPO_DIR, 'gestflow',
-                 'gestflow_02_content_engine',
-                 'gestflow-vscode-extension')
+    os.path.join(REPO_DIR,
+                 'gestflow_03_vscode_extension')
 )
 
 
@@ -293,27 +295,53 @@ def install_vscode_extension():
         print_warn(f"VSCode extension not found: {VSCODE_EXT_SRC}")
         return False
 
-    # ── Install npm dependencies ──
-    node_modules = os.path.join(VSCODE_EXT_SRC, 'node_modules')
-    if not os.path.exists(node_modules):
-        print("  Installing npm dependencies...")
-        ok, out = run(['npm', 'install'], cwd=VSCODE_EXT_SRC)
+    # Check if bundled dist/extension.js exists
+    dist_path = os.path.join(VSCODE_EXT_SRC, 'dist', 'extension.js')
+    if not os.path.exists(dist_path):
+        print_warn("Bundle not found — building now...")
+        ok, out = run(
+            ['npx', 'esbuild', 'extension.js',
+             '--bundle', '--platform=node',
+             '--outfile=dist/extension.js',
+             '--external:vscode'],
+            cwd=VSCODE_EXT_SRC
+        )
         if ok:
-            print_ok("npm dependencies installed")
+            print_ok("Extension bundled successfully")
         else:
-            print_warn(f"npm install failed: {out[:100]}")
+            print_warn(f"Bundle failed: {out[:200]}")
+            return False
 
-    # ── Method 1: Install via VSCode CLI ──
-    if _vscode_cli_install():
+    # Copy to VSCode extensions folder — node_modules excluded
+    ext_dir = os.path.join(HOME_DIR, '.vscode', 'extensions')
+
+    if not os.path.exists(ext_dir):
+        print_warn(f"VSCode extensions folder not found: {ext_dir}")
+        _manual_vscode_instructions()
+        return False
+
+    dest = os.path.join(ext_dir, 'gestflow-vscode-1.0.0')
+
+    try:
+        if os.path.exists(dest):
+            shutil.rmtree(dest)
+
+        shutil.copytree(
+            VSCODE_EXT_SRC,
+            dest,
+            ignore=shutil.ignore_patterns(
+                'node_modules', '.git', '*.pem', 'extension.js'
+            )
+        )
+
+        print_ok(f"VSCode extension installed: {dest}")
+        print_info("Restart VSCode to activate extension")
         return True
 
-    # ── Method 2: Copy to extensions folder ──
-    if _vscode_copy_install():
-        return True
-
-    # ── Fallback: Manual instructions ──
-    _manual_vscode_instructions()
-    return False
+    except Exception as e:
+        print_warn(f"Copy failed: {e}")
+        _manual_vscode_instructions()
+        return False
 
 
 def _vscode_cli_install():
